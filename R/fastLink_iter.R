@@ -46,23 +46,7 @@ iterateFastLink <- function(state, dat) {
     d2 <- d %>% 
       filter(year == y+1)
     print(d2 %>% count(year))
-    
-    block.out <- blockData(d1, d2, varnames = c("NCES_leaid"))
-    
-    wrap_fastlink <- function(block, d1, d2) {
-      
-      block.d1 <- d1[block$dfA.inds,] 
-      block.d2 <- d1[block$dfB.inds,] 
-        
-      
-    }
-    
-    blocked.matches.out <- map(block.out, fastLink, 
-                               )    
-    for(block in block.out) {
-      
-    }
-    
+  
     matches.out <- fastLink(
       dfA = d1,
       dfB = d2,
