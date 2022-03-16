@@ -1,14 +1,11 @@
 library(tidyverse)
-library(collapse)
 
-OK_det <- readRDS("~/DissertationTurnover/data/deterministic/OK.RDS")
-OK_fl <- readRDS("~/DissertationTurnover/data/fastLink/OK.RDS")
-
-glimpse(OK_fl)
+OK_det <- readRDS("data/deterministic/OK.RDS")
+OK_fl <- readRDS("data/fastLink/OK.RDS")
 
 OK <- OK_det %>% 
   tidylog::left_join(OK_fl %>% select(source_id, year, flid)) %>% 
-  select(-starts_with("detid_")) %>% 
+  dplyr::select(-starts_with("detid_")) %>% 
   mutate(source_id = stringr::str_pad(source_id, 6, pad = "0", side = "left"))
 
 # Accuracy ----------------------------------
@@ -110,6 +107,14 @@ f.measure.agg <- function(f_list) {
   )
 }
 
+precision <- function(f_list) {
+  f_list$true.match / (f_list$true.match + f_list$false.match)
+}
+
+recall <- function(f_list) {
+  f_list$true.match / (f_list$true.match + f_list$false.non.match)
+}
+
 f.measure.agg.df <- function(f_list) {
   
  f2 <- f.measure.agg(f_list)
@@ -118,6 +123,8 @@ f.measure.agg.df <- function(f_list) {
              `False Non-Match` = f2$false.non.match, 
              `False Match` = f2$false.match, 
              `True Non-Match` = f2$true.non.match,
+             `Precision` = precision(f2),
+             `Recall` = recall(f2),
              `F Measure` = f.measure.calc(f2),
              check.names = FALSE)
 }
