@@ -2,14 +2,15 @@ library(fastLink)
 library(tidyverse)
 library(collapse)
 
-raw <- readRDS("data-raw/clean_payroll_records.RDS")
+raw <- readRDS("data-raw/clean_payroll_records.RDS") %>% 
+  mutate(across(c(name_first, name_middle, name_last, name_other, position), tolower))
 
 iterateFastLink <- function(state, dat) {
   
-  # testing only 
-  dat <- testdat
-  state <- "OK"
-  y <- 2007
+  # for testing when not running the whole function
+  # dat <- testdat
+  # state <- "OK"
+  # y <- 2007
   #  ^
   
   dat <- dat %>% filter(state == !!state)

@@ -1,8 +1,8 @@
-library(fastLink)
 library(tidyverse)
 library(collapse)
 
-raw <- readRDS("data-raw/clean_payroll_records.RDS")
+raw <- readRDS("data-raw/clean_payroll_records.RDS") %>% 
+  mutate(across(c(name_first, name_middle, name_last, name_other, position), tolower))
 dir <- "data/deterministic"
 
 iterateDeterministic <- function(state, dat) {
