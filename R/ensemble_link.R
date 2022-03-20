@@ -5,7 +5,7 @@ library(collapse)
 raw <- readRDS("data-raw/clean_payroll_records.RDS") %>% 
   # CASE CORRECTION NEEDS TO BE MOVED TO DATA CLEANING
   mutate(across(c(name_first, name_middle, name_last, name_other, position), tolower))
-dir <- "data/deterministic_fastLink"
+dir <- "data/ensemble"
 
 
 
