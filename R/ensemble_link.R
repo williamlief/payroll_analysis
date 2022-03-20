@@ -128,7 +128,7 @@ backstop_fastLink <- function(d1, d2, state, y,
   # This section should be improved! But I don't want to overfit to Oklahoma
   # In training Oklahoma has relatively little use for fastLink, but other states 
   # are finding more matches through it.
-
+  
   # only match on the immediate year pair, exclude prior years so fastLink doesn't get bogged down
   d1 <- d1 %>% filter(year == !!y) 
   
@@ -310,8 +310,8 @@ iterate_link <- function(state, dat, fastlink = TRUE) {
   # After iterating through all years, fill in an arbitrary id value
   d_final <- d %>% 
     mutate(ensemble_id = if_else(is.na(ensemble_id), 
-                          paste(state, year, "nomatch", row_number(), sep = "_"),
-                          ensemble_id))
+                                 paste(state, year, "nomatch", row_number(), sep = "_"),
+                                 ensemble_id))
   
   return(d_final)
 } 
