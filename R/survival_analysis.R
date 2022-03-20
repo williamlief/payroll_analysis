@@ -9,7 +9,8 @@ library(ggridges)
 
 raw <- readRDS("data/linked_data.rds")
 
-dat <- raw
+dat <- raw %>% 
+  filter(!(state == "ND" & year > 2017)) # ND has a hole that messes up turnover rates
 # dat <- sample_frac(raw, .001)
 
 
@@ -112,23 +113,52 @@ dist_turnover <- micro_dist_turn %>%
     .groups = "drop"
   ) 
 
+dist_turnover  %>% 
+  filter(year %in% c(2011:2017), n >= 100) %>% 
+  mutate(exclude = turnover > .4) %>% 
+  count(exclude) %>% 
+  mutate(p = n / sum(n)) %>% 
+  filter(exclude == TRUE) %>%
+  pull(p) %>% 
+  scales::percent(., accuracy = .1) -> p_excl
+           
 
 p <- ggplot(data = dist_turnover  %>% 
-         filter(year %in% c(2011:2017), n >= 100),
+         filter(year %in% c(2011:2017), n >= 100, turnover < .4),
        aes(x = turnover, y = fct_rev(factor(year)),  alpha = .1)) +
   geom_density_ridges(rel_min_height = 0.001, scale = 1) +
   facet_wrap(.~state) +
+  coord_cartesian(xlim = c(0, .4)) +
   scale_alpha(guide = 'none') +
   theme_ridges() + 
   labs(y = NULL, alpha = NULL,
        x = "Turnover Rate",
-       title = "Distribution of Turnover Rates by District in 2012-2017",
-       caption = "Figure Omits districts with fewer than 100 teachers")
+       title = "Distribution of Turnover Rates by District in 2011-2017",
+       caption = str_wrap(paste("Figure restricted to districts with 100 or more teachers. For clarity, figure restricts x axis to 40% maximum annual turnover, excluding", p_excl, "of observations")), 150)
 
 ggsave(plot = p, 
        filename = "figures/turnover_ridge.png",
        width = 7, 
        height = 7)
+
+dist_turn_table <- dist_turnover %>% 
+  filter(n >= 100) %>% 
+  group_by(state) %>% 
+  summarize(
+    p25 = quantile(turnover, .25),
+    median = quantile(turnover, .5), 
+    p75 = quantile(turnover, .75),
+    mean = mean(turnover), 
+    sd = sd(turnover), 
+    n = n(), 
+    years = paste0(min(year), ":", max(year)))
+
+knitr::kable(dist_turn_table, booktabs = TRUE,
+             format = "latex", 
+             digits = 2,
+             caption = "Turnover rates for teaching positions within a district", 
+             label = "distturn")
+
 
 # Survival Plots -----------------------------------------------------------
 
@@ -304,64 +334,3 @@ ggsave(plot = p,
        width = 7, 
        height = 7)
 
-# Coxph -------------------------------------------------------------------
-
-dat2 <- dat %>% 
-  filter(teacher == "TRUE") %>% 
-  group_by(state, NCES_leaid, id) %>% 
-  summarize(year_first = min(year), 
-            year_last = max(year), 
-            n_years = n()) %>% 
-  left_join(state_stats)
-
-dat3 <- dat2 %>% 
-  mutate(length = year_last-year_first + 1,
-         length = n_years,
-         status = case_when(year_last < state_end ~ 1,
-                            TRUE ~ 0)) %>% 
-  filter(year_first != state_start) # exclude first year b.c. left trunc
-
-cox <- coxph(Surv(length, status) ~ NCES_leaid, data = dat3)
-summary(cox)
-
-
-
-### Attrition
-# attrition isnt 100% in 2018 and enter 100% in 2002 because duplicate names in a year
-n_year.state <- df %>% 
-  group_by(year, state, NCES_leaid) %>% 
-  count() %>% 
-  group_by(year, state) %>% 
-  count()
-
-year.state.district.ee <- df %>% 
-  group_by(year, state, NCES_leaid) %>% 
-  summarize(attrit = mean(last), enter = mean(first), n = n()) %>% 
-  filter(state %in% c("GA", "NV", "NY", "PA"))
-
-ggplot(data = year.state.district.ee  %>% 
-         filter(
-           year==2015 &
-             attrit < .4 &
-             !is.na(state)) %>% 
-         left_join(n_year.state %>% rename("n_dist" = nn)) %>% 
-         mutate(label = paste0(state,": n = ", n_dist)),
-       aes(x = attrit, y = label)) +
-  geom_density_ridges(rel_min_height = 0.001, scale = 1) +
-  scale_x_continuous(limits=c(0, .4), expand = c(0.01, 0)) +
-  theme_ridges() +
-  ylab("State") + xlab("Attrition Rate") +
-  ggtitle("Distribution of Attrition Rates by District in 2015")
-
-ggplot(data = year.state.district.ee  %>% 
-         filter(
-           year %in% c(2012,2013,2014,2015) &
-             attrit < .4 &
-             !is.na(state)
-         ),
-       aes(x = attrit, y = state, fill=as.factor(year), alpha = .1)) +
-  geom_density_ridges(rel_min_height = 0.001, scale = 1) +
-  scale_x_continuous(limits=c(0, .4), expand = c(0.01, 0)) +
-  theme_ridges() + 
-  ylab("State") + xlab("Attrition Rate") +
-  ggtitle("Distribution of Attrition Rates by District in 2012-2015")
