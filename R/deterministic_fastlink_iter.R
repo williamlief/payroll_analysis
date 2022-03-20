@@ -11,7 +11,9 @@ dir <- "data/deterministic_fastLink"
 
 # Functions ---------------------------------------------------------------
 
-# These are not yet ready to be run independently and access vars in the global env
+# These are not yet ready to be run independently and are designed with particular 
+# assumptions about the data frame they are operating on. Further development work 
+# is needed to generalize.
 
 #' join two data frames, 1:1 matches only 
 #'
@@ -42,20 +44,23 @@ match_func <- function(criteria, d1, d2) {
   m 
 }
 
-#' Iterate matching through criteria list
+#' Iterative matching through a criteria list
 #' 
-#' @description Requires global vars y (an int) and state (a char string)
+#' @description matches two datafiles using a list of lists of matching criteria. 
+#' Finds unique 1:1 matches between d1 and d2. Outputs `index` and `id` in data.frame
 #' 
 #' @details the function iterates through the variables in the criteria list. 
 #' At each step it applies `match_func` and finds the 1:1 matches. Then it removes
-#' those records from d1 and d2 using the variables index1 and index2` and 
-#' applies the next step of matching. 
+#' those records from d1 and d2 using the variables `index1` and `index2` and 
+#' applies the next step of matching on the reduced data frames. 
 #'
-#' @param criteria_list a list of variable sets to match on
+#' @param criteria_list a list of lists of variable to match on
 #' @param d1 dataframe 1 must have a variable `index1` that uniquely identifies 
 #' each row - CANNOT overlap with index2
 #' @param d2 dataframe 2 must have a variable `index2` that uniquely identifies 
 #' each row - CANNOT overlap with index1
+#' @state char str indicating state, embedded in id
+#' @y int for year, embedded in id
 #'
 #' @return a dataframe with two columns `id` that is a unique identifier
 #' for the match. id embeds the state and y values, the criteria index, and an
@@ -95,15 +100,17 @@ match_wrap <- function(criteria_list, d1, d2, state, y) {
 
 #' fastLink backstop 
 #' 
-#' @description Requires global vars y (an int) and state (a char string)
+#' @description runs fastLink, outputs `index` and `id` in data.frame
 #' 
 #' @details probabilistic matching on just first and last name, to be used after
-#' match_wrap. Very computationally intensive. TODO: generalize the parameters
+#' match_wrap. Very computationally intensive. TODO: generalize the fastlink parameters
 #'
 #' @param d1 dataframe 1 must have a variable `index1` that uniquely identifies 
 #' each row - CANNOT overlap with index2
 #' @param d2 dataframe 2 must have a variable `index2` that uniquely identifies 
 #' each row - CANNOT overlap with index1
+#' @state char indicating state, embedded in id
+#' @y int for year, embedded in id
 #' @param fl.stringdist.match var names to string match
 #' @param fl.stringdist.match var names to allow partial matching
 #' 
@@ -113,15 +120,16 @@ match_wrap <- function(criteria_list, d1, d2, state, y) {
 #' `index` is the original index value.
 #' There will be two rows for each `id` value containing all 1:1 matching
 #'  rows in d1 and d2. Any unmatched or 1/m/m:m/1/m rows are excluded.
-backstop_fastLink <- function(d1, d2, 
+backstop_fastLink <- function(d1, d2, state, y,
                               fl.stringdist.match = c("name_first", "name_last"),
                               fl.partial.match = c("name_first", "name_last"), 
-                              n.cores = 31, 
-                              state, y) {
+                              n.cores = 31) {
   
   # This section should be improved! But I don't want to overfit to Oklahoma
+  # In training Oklahoma has relatively little use for fastLink, but other states 
+  # are finding more matches through it.
 
-  # only match on the year pair, exclude prior years so fastLink doesn't get bogged down
+  # only match on the immediate year pair, exclude prior years so fastLink doesn't get bogged down
   d1 <- d1 %>% filter(year == !!y) 
   
   print(paste0("Running backstop fastlink on ",
@@ -172,7 +180,7 @@ backstop_fastLink <- function(d1, d2,
 }
 
 
-#' ensemble link a year pair
+#' ensemble link a year pair, updates payroll record data file with `ensemble_id`
 #' 
 #' @description wrapper for match_wrap and backstop_fastlink
 #' 
@@ -185,14 +193,13 @@ backstop_fastLink <- function(d1, d2,
 #' ensemble_id: will be updated with successive calls, null on first call
 #' year: var to identfiy the year
 #' all vars that are used by criteria_list and backstop_fastlink
-#' @param y - int for year
+#' @param y - int for year, function will pull year = y+1 and year <= y where id is null
 #' @param state character string indicating state e.g. "PA"
 #' @param fastlink boolean to run backstop fastlink or not
 #'
-#' @return
-#' @export
-#'
-#' @examples
+#' @return updated version of input data frame. `ensemble_id` is updated with 
+#' linkage results. `ensemble_id_{y}` added with linkage results from this year 
+#' pair for debugging.
 ensemble_linkage <- function(d, y, state, fastlink) {
   # Get this year and unmatched previous years
   d1 <- d %>% 
@@ -263,17 +270,17 @@ ensemble_linkage <- function(d, y, state, fastlink) {
 #' @description Compares records within a state year by year using a series of 
 #' exact matching criteria and a probabilistic backstop
 #' 
-#' @details
+#' @details This is the outermost function and the one that gets called to link 
+#' data. 
 #'
 #' @param state character string indicating state e.g. "PA"
 #' @param dat data frame with administrative records. 
 #' @param fastlink boolean to run backstop fastlink or not
 #'
-#' @return
-#' @export
-#'
-#' @examples
-iterateDeterministic_fastLink <- function(state, dat, fastlink = TRUE) {
+#' @return updated data frame with  linkage. 
+#' Added variable `ensemble_id` and set of `ensemble_link_{y}` vars for each
+#'  year in min(year) to max(year) - 1. 
+iterate_link <- function(state, dat, fastlink = TRUE) {
   
   # salary manipulation should be moved out
   # leaving state subset in, someday allow for cross state linkage?
@@ -319,10 +326,10 @@ sample_districts <- raw %>% filter(state == "OK") %>%
 testdat <- raw %>% 
   filter(NCES_leaid %in% sample_districts$NCES_leaid) 
 
-test_ok <- iterateDeterministic_fastLink("OK", testdat)
+test_ok <- iterate_link("OK", testdat)
 saveRDS(test_ok, paste0(dir, "/testok_ensemble.rds"))
 
-# Iterate through states 
+# Iterate through states and log it
 states <- unique(raw$state)
 states <- states[!grepl("ND", states)] # remove ND, no vars for matching
 
@@ -332,7 +339,7 @@ for (state in states) {
   sink(paste0(dir, "/log_", state, ".txt"), append = "TRUE", type = c("output", "message"))
   print(paste("starting", state, Sys.time()))
   try({
-    det_res <- iterateDeterministic_fastLink(state, raw %>% filter(state == !!state))
+    det_res <- iterate_link(state, raw %>% filter(state == !!state))
     saveRDS(det_res, paste0(dir, "/", state, ".RDS"))
   })
   sink()
