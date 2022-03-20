@@ -2,10 +2,12 @@ library(tidyverse)
 
 OK_det <- readRDS("data/deterministic/OK.RDS")
 OK_fl <- readRDS("data/fastLink/OK.RDS")
+ok_ensemble <-  readRDS("data/ensemble/OK.RDS")
 
 OK <- OK_det %>% 
-  tidylog::left_join(OK_fl %>% select(source_id, year, flid)) %>% 
   dplyr::select(-starts_with("detid_")) %>% 
+  tidylog::left_join(OK_fl %>% select(source_id, year, flid)) %>% 
+  tidylog::left_join(ok_ensemble %>% select(source_id, year, ensemble_id)) %>% 
   mutate(source_id = stringr::str_pad(source_id, 6, pad = "0", side = "left"))
 
 # Accuracy ----------------------------------
@@ -87,16 +89,13 @@ f.measure.by.year <- function(dat, source.idvar, constructed.idvar, yearvar) {
 
 f_detid <- f.measure.by.year(OK, "source_id", "detid", "year")
 f_fastLink <- f.measure.by.year(OK, "source_id", "flid", "year")
-
+f_ensemble <- f.measure.by.year(OK, "source_id", "ensemble_id", "year")
 
 f.measure.calc <- function(f_list) {
   2*f_list$true.match / 
     (f_list$false.non.match + f_list$false.match + 2*f_list$true.match)
 } 
 
-
-f.measure.calc(f_detid)
-f.measure.calc(f_fastLink)
 
 f.measure.agg <- function(f_list) {
   list(
@@ -133,6 +132,7 @@ f.measure.agg.df <- function(f_list) {
 accuracy_table <- bind_rows(
  "Deterministic Link" = f.measure.agg.df(f_detid),
  "Probabilistic Link" = f.measure.agg.df(f_fastLink),
+ "Ensemble" = f.measure.agg.df(f_ensemble),
  .id = "Method"
 )
 
@@ -140,13 +140,9 @@ accuracy_table <- bind_rows(
 knitr::kable(accuracy_table %>% pivot_longer(-Method) %>% 
                pivot_wider(names_from = Method, values_from = value), 
              format = 'latex', booktabs = TRUE,
-             # vline = "", 
-             # toprule = "\\hline \\hline", 
-             # midrule = "",
-             # bottomrule = "",
              format.arg = list(big.mark = ","),
              digits = 3,
-             caption = 'Accuracy of deterministic linkage, evaluating each year-pair in Oklahoma', 
+             caption = 'Linkage accuracy, evaluating each year-pair in Oklahoma', 
              label = 'linkacc')
 
 
@@ -203,6 +199,11 @@ turns[["Probabilistic"]] <- OK %>%
   filter(teacher == "TRUE") %>% 
   turn_pipe(id = flid)
 
+turns[["Ensemble"]] <- OK %>% 
+  filter(teacher == "TRUE") %>% 
+  turn_pipe(id = ensemble_id)
+
+
 turn_dat <- bind_rows(turns, .id = "turnover_type")
 
 ggplot(data = turn_dat %>% filter(year != max(year)) %>% 
@@ -224,3 +225,9 @@ ggplot(data = turn_dat %>% filter(year != max(year)) %>%
 
 ggsave("figures/linkCompare.png", 
        bg = "white", width = 7, height = 4)
+
+
+dif <- turn_dat[turn_dat$turnover_type == "Ensemble", "turnover"] - 
+  turn_dat[turn_dat$turnover_type == "Official ID", "turnover"] 
+
+summary(dif[1:(nrow(dif)-1),]) # exclude final 0 year
