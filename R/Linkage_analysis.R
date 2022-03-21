@@ -84,7 +84,7 @@ f.measure.by.year <- function(dat, source.idvar, constructed.idvar, yearvar) {
               'false.non.match' = c, 
               'false.match' = b, 
               'true.non.match' = a
-              ))
+  ))
 }
 
 f_detid <- f.measure.by.year(OK, "source_id", "detid", "year")
@@ -116,7 +116,7 @@ recall <- function(f_list) {
 
 f.measure.agg.df <- function(f_list) {
   
- f2 <- f.measure.agg(f_list)
+  f2 <- f.measure.agg(f_list)
   
   data.frame(`True Matches` = f2$true.match,
              `False Non-Match` = f2$false.non.match, 
@@ -130,10 +130,10 @@ f.measure.agg.df <- function(f_list) {
 
 
 accuracy_table <- bind_rows(
- "Deterministic Link" = f.measure.agg.df(f_detid),
- "Probabilistic Link" = f.measure.agg.df(f_fastLink),
- "Ensemble" = f.measure.agg.df(f_ensemble),
- .id = "Method"
+  "Deterministic Link" = f.measure.agg.df(f_detid),
+  "Probabilistic Link" = f.measure.agg.df(f_fastLink),
+  "Ensemble" = f.measure.agg.df(f_ensemble),
+  .id = "Method"
 )
 
 
