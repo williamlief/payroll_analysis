@@ -21,8 +21,4 @@ to generalize to new data sets.
 ## data_cleaning_scripts/ 
 
 Scripts for cleaning the raw files. In some cases there was minimal hand processing of 
-downloaded files. All raw files are located in the companion OSF repository at XXXX. Some of the first cleaning work was done in stata, that code will need to be migrated to R. Code quality is uneven, and would benefit from refactoring to be made consistent. 
-
-1. core_variables.txt list the names of the core set of variables that were processed into the master dataset. 
-1. `MasterCompilation.R` pulls together the csv files for each state and writes `data-raw/clean_payroll_records.RDS`.
-1. All other files are self explanatory and process the files for the respective state.
+downloaded files. All raw files are located in the companion OSF repository at XXXX. 

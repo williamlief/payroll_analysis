@@ -1,0 +1,15 @@
+state: two character state abbreviation
+year: 4 character spring year. e.g. 2012-2013 school year = 2013
+salary: amount of money paid - going to be tricky to think about what gets included in different states reports
+name_first: first name, all lower case
+name_middle: middle name/ initial, all lower case
+name_last: last name, all lower case
+name_other: other name identifier (e.g. suffix) all lower case
+source_id: id given by data provider that links names
+school_district: school district teaching in, lower case
+teacher: binary indicating whether individual has teaching position or not, may be unreliable depending on the district
+position: text of position description
+source: brief description of data source, "(non-govt)" means I sourced from unoffocial/non government provider
+NCES_name: NCES district name
+NCES_localid: NCES local district id
+NCES_leaid: NCES official district id
