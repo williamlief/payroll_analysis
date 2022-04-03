@@ -1,5 +1,4 @@
 library(tidyverse)
-options(collapse_mask = "manip")
 library(collapse)
 
 library(survival)
@@ -113,6 +112,13 @@ dist_turnover <- micro_dist_turn %>%
     .groups = "drop"
   ) 
 
+
+           
+
+turnover_ridge_dat <- dist_turnover  %>% 
+  filter(year %in% c(2011:2017), n >= 100, turnover < .4) %>% 
+  mutate(year_fac = fct_rev(factor(year)))
+
 dist_turnover  %>% 
   filter(year %in% c(2011:2017), n >= 100) %>% 
   mutate(exclude = turnover > .4) %>% 
@@ -121,15 +127,17 @@ dist_turnover  %>%
   filter(exclude == TRUE) %>%
   pull(p) %>% 
   scales::percent(., accuracy = .1) -> p_excl
-           
 
-p <- ggplot(data = dist_turnover  %>% 
-         filter(year %in% c(2011:2017), n >= 100, turnover < .4),
-       aes(x = turnover, y = fct_rev(factor(year)),  alpha = .1)) +
+p <- 
+  ggplot(data = turnover_ridge_dat,
+       aes(x = turnover, y = year_fac,  alpha = .1)) +
   geom_density_ridges(rel_min_height = 0.001, scale = 1) +
   facet_wrap(.~state) +
   coord_cartesian(xlim = c(0, .4)) +
   scale_alpha(guide = 'none') +
+  # HARD CODED LABELS
+  scale_y_discrete(breaks=c(2011:2017), labels = c(2011, "", 2013, "", 2015, "", 2017)) +
+  scale_x_continuous(breaks = c(0, 0.1, 0.2, 0.3, 0.4), labels = c(0.0, 0.1, 0.2, 0.3, "")) +
   theme_ridges() + 
   labs(y = NULL, alpha = NULL,
        x = "Turnover Rate",
